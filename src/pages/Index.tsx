@@ -7,20 +7,19 @@ import { FooterSection } from "@/components/sections/FooterSection";
 import { ChatInterface } from "@/components/agent/ChatInterface";
 import { WalletModal } from "@/components/agent/WalletModal";
 import { TokenApprovalModal } from "@/components/agent/TokenApprovalModal";
+import { useWallet } from "@/hooks/useWallet";
 import { toast } from "sonner";
+import { parseUnits } from "viem";
 
 const Index = () => {
-  const [isConnected, setIsConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string>();
+  const { address, isConnected, connectors, connect, disconnect } = useWallet();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
 
   const handleConnectWallet = () => {
     if (isConnected) {
-      // Disconnect
-      setIsConnected(false);
-      setWalletAddress(undefined);
+      disconnect();
       toast.success("Wallet disconnected");
     } else {
       setIsWalletModalOpen(true);
@@ -28,27 +27,18 @@ const Index = () => {
   };
 
   const handleWalletConnect = (walletType: string) => {
-    // Simulate wallet connection
-    const mockAddress = "0x4E26fc6eb05a1CDbD762609fDE9958e5b8CC754d";
-    setWalletAddress(mockAddress);
-    setIsConnected(true);
-    setIsWalletModalOpen(false);
-    
-    toast.success(`Connected with ${walletType}`, {
-      description: `Address: ${mockAddress.slice(0, 6)}...${mockAddress.slice(-4)}`
-    });
-
-    // Show approval modal for initial 500K SPAT
-    setTimeout(() => {
-      setIsApprovalModalOpen(true);
-    }, 1000);
+    const connector = connectors.find(c => c.id === walletType) || connectors[0];
+    if (connector) {
+      connect({ connector });
+      setIsWalletModalOpen(false);
+      toast.success(`Connecting with ${connector.name}...`);
+      setTimeout(() => setIsApprovalModalOpen(true), 1500);
+    }
   };
 
   const handleApprove = () => {
     setIsApprovalModalOpen(false);
-    toast.success("$SPAT Approved!", {
-      description: "You can now use SPAT Agent"
-    });
+    toast.success("$SPAT Approved!", { description: "You can now use SPAT Agent" });
   };
 
   const handleLaunchAgent = () => {
@@ -64,7 +54,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header 
         isConnected={isConnected}
-        walletAddress={walletAddress}
+        walletAddress={address}
         onConnectWallet={handleConnectWallet}
       />
       
@@ -76,7 +66,6 @@ const Index = () => {
 
       <FooterSection />
 
-      {/* Modals */}
       <ChatInterface 
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}

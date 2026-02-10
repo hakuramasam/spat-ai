@@ -22,6 +22,8 @@ export function Header({ isConnected, walletAddress, onConnectWallet }: HeaderPr
     { href: "/", label: "Home" },
     { href: "/dashboard", label: "Dashboard" },
     { href: "/create-token", label: "Create Token" },
+    { href: "/contracts", label: "Contracts" },
+    { href: "/social", label: "Social" },
     { href: "/market", label: "Market" },
   ];
 

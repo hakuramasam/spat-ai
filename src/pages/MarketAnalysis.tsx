@@ -8,38 +8,13 @@ import {
   Globe,
   Zap,
   BarChart3,
-  PieChart,
   Activity,
   ArrowUpRight,
   Clock,
   Users
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from "recharts";
-
-const priceData = [
-  { time: "00:00", eth: 3650, spat: 0.0098 },
-  { time: "04:00", eth: 3680, spat: 0.0102 },
-  { time: "08:00", eth: 3720, spat: 0.0105 },
-  { time: "12:00", eth: 3695, spat: 0.0103 },
-  { time: "16:00", eth: 3750, spat: 0.0108 },
-  { time: "20:00", eth: 3780, spat: 0.0112 },
-  { time: "Now", eth: 3810, spat: 0.0115 },
-];
-
-const topTokens = [
-  { name: "$BRETT", price: "$0.142", change: "+28.5%", isPositive: true, mcap: "$1.2B" },
-  { name: "$DEGEN", price: "$0.0089", change: "+15.2%", isPositive: true, mcap: "$89M" },
-  { name: "$HIGHER", price: "$0.0034", change: "-5.8%", isPositive: false, mcap: "$34M" },
-  { name: "$TYBG", price: "$0.0012", change: "+45.3%", isPositive: true, mcap: "$12M" },
-  { name: "$AERO", price: "$1.45", change: "+8.9%", isPositive: true, mcap: "$450M" },
-];
-
-const networkStats = [
-  { label: "TVL", value: "$7.2B", change: "+12%", icon: BarChart3 },
-  { label: "24h Volume", value: "$892M", change: "+8%", icon: Activity },
-  { label: "Active Users", value: "892K", change: "+15%", icon: Users },
-  { label: "Transactions", value: "4.2M", change: "+5%", icon: Zap },
-];
+import { useEthPrice, useBaseTVL, useTrending, useEthHistory } from "@/hooks/useMarketData";
 
 const defiAllocation = [
   { name: "DEXs", value: 45, color: "hsl(217, 100%, 50%)" },
@@ -60,28 +35,59 @@ const trendingTopics = [
 export default function MarketAnalysis() {
   const [isConnected] = useState(true);
   const [walletAddress] = useState("0x4E26fc6eb05a1CDbD762609fDE9958e5b8CC754d");
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [timeframe, setTimeframe] = useState<"24h" | "7d" | "30d">("24h");
+
+  const { data: prices, isLoading: pricesLoading, refetch: refetchPrices } = useEthPrice();
+  const { data: baseTVL, isLoading: tvlLoading } = useBaseTVL();
+  const { data: trending, isLoading: trendingLoading } = useTrending();
+  const { data: ethHistory } = useEthHistory();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const ethPrice = prices?.ethereum?.usd || 0;
+  const ethChange = prices?.ethereum?.usd_24h_change || 0;
+
+  const chartData = ethHistory?.map((item: [number, number]) => ({
+    time: new Date(item[0]).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    eth: Math.round(item[1]),
+  })) || [];
+
+  const tvlValue = baseTVL?.tvl ? `$${(baseTVL.tvl / 1e9).toFixed(1)}B` : "$—";
+
+  const networkStats = [
+    { label: "TVL", value: tvlValue, change: "+12%", icon: BarChart3 },
+    { label: "ETH Price", value: ethPrice ? `$${ethPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "$—", change: `${ethChange >= 0 ? "+" : ""}${ethChange.toFixed(1)}%`, icon: Activity },
+    { label: "Active Users", value: "892K", change: "+15%", icon: Users },
+    { label: "Transactions", value: "4.2M", change: "+5%", icon: Zap },
+  ];
 
   const handleRefresh = () => {
     setIsRefreshing(true);
+    refetchPrices();
     setTimeout(() => setIsRefreshing(false), 1500);
   };
 
+  const trendingTokens = trending?.map((item: any) => ({
+    name: item.item?.symbol ? `$${item.item.symbol.toUpperCase()}` : "—",
+    price: item.item?.data?.price ? `$${Number(item.item.data.price).toFixed(4)}` : "—",
+    change: item.item?.data?.price_change_percentage_24h?.usd
+      ? `${item.item.data.price_change_percentage_24h.usd >= 0 ? "+" : ""}${item.item.data.price_change_percentage_24h.usd.toFixed(1)}%`
+      : "—",
+    isPositive: (item.item?.data?.price_change_percentage_24h?.usd || 0) >= 0,
+    mcap: item.item?.data?.market_cap ? `$${(Number(item.item.data.market_cap.replace(/[^0-9.]/g, '')) / 1e6).toFixed(0)}M` : "—",
+  })) || [];
+
   return (
     <div className="min-h-screen bg-background">
-      <Header 
-        isConnected={isConnected}
-        walletAddress={walletAddress}
-        onConnectWallet={() => {}}
-      />
+      <Header isConnected={isConnected} walletAddress={walletAddress} onConnectWallet={() => {}} />
 
       <main className="container mx-auto px-4 pt-24 pb-12">
-        {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gradient mb-2">Market Analysis</h1>
-            <p className="text-muted-foreground">Real-time crypto market intelligence on Base Network</p>
+            <p className="text-muted-foreground">
+              Real-time crypto market intelligence
+              {pricesLoading ? " • Loading..." : " • Live data from CoinGecko & DeFiLlama"}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex bg-secondary/50 rounded-lg p-1">
@@ -90,9 +96,7 @@ export default function MarketAnalysis() {
                   key={t}
                   onClick={() => setTimeframe(t)}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    timeframe === t 
-                      ? "bg-primary text-primary-foreground" 
-                      : "text-muted-foreground hover:text-foreground"
+                    timeframe === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {t}
@@ -123,22 +127,23 @@ export default function MarketAnalysis() {
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Price Chart */}
           <div className="lg:col-span-2 glass-card p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-lg font-bold">ETH Price</h2>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-2xl font-bold text-gradient">$3,810</span>
-                  <span className="flex items-center gap-1 text-success text-sm">
-                    <TrendingUp className="w-4 h-4" />
-                    +4.38%
+                  <span className="text-2xl font-bold text-gradient">
+                    {ethPrice ? `$${ethPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "Loading..."}
+                  </span>
+                  <span className={`flex items-center gap-1 text-sm ${ethChange >= 0 ? "text-success" : "text-destructive"}`}>
+                    {ethChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                    {ethChange >= 0 ? "+" : ""}{ethChange.toFixed(2)}%
                   </span>
                 </div>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={priceData}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="ethGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(217, 100%, 50%)" stopOpacity={0.3}/>
@@ -148,43 +153,22 @@ export default function MarketAnalysis() {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 47%, 18%)" />
                 <XAxis dataKey="time" stroke="hsl(215, 20%, 55%)" fontSize={12} />
                 <YAxis stroke="hsl(215, 20%, 55%)" fontSize={12} domain={['dataMin - 50', 'dataMax + 50']} />
-                <Tooltip 
-                  contentStyle={{ 
-                    background: "hsl(222, 47%, 10%)", 
-                    border: "1px solid hsl(222, 47%, 18%)",
-                    borderRadius: "8px"
-                  }}
-                />
+                <Tooltip contentStyle={{ background: "hsl(222, 47%, 10%)", border: "1px solid hsl(222, 47%, 18%)", borderRadius: "8px" }} />
                 <Area type="monotone" dataKey="eth" stroke="hsl(217, 100%, 50%)" fill="url(#ethGradient)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          {/* DeFi Allocation */}
           <div className="glass-card p-6">
             <h2 className="text-lg font-bold mb-6">DeFi Allocation</h2>
             <ResponsiveContainer width="100%" height={200}>
               <RechartsPie>
-                <Pie
-                  data={defiAllocation}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
+                <Pie data={defiAllocation} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value">
                   {defiAllocation.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    background: "hsl(222, 47%, 10%)", 
-                    border: "1px solid hsl(222, 47%, 18%)",
-                    borderRadius: "8px"
-                  }}
-                />
+                <Tooltip contentStyle={{ background: "hsl(222, 47%, 10%)", border: "1px solid hsl(222, 47%, 18%)", borderRadius: "8px" }} />
               </RechartsPie>
             </ResponsiveContainer>
             <div className="grid grid-cols-2 gap-2 mt-4">
@@ -201,24 +185,18 @@ export default function MarketAnalysis() {
 
         {/* Bottom Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Top Tokens */}
+          {/* Trending Tokens */}
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold">Trending on Base</h2>
-              <Button variant="ghost" size="sm">
-                View All
-                <ArrowUpRight className="w-4 h-4 ml-1" />
-              </Button>
+              <h2 className="text-lg font-bold">Trending Tokens</h2>
+              {trendingLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
             </div>
             <div className="space-y-3">
-              {topTokens.map((token, index) => (
-                <div 
-                  key={token.name}
-                  className="flex items-center gap-4 p-3 bg-secondary/30 hover:bg-secondary/50 rounded-lg transition-colors"
-                >
-                  <span className="w-6 text-center text-muted-foreground font-medium">
-                    {index + 1}
-                  </span>
+              {(trendingTokens.length > 0 ? trendingTokens : [
+                { name: "$—", price: "—", change: "—", isPositive: true, mcap: "—" },
+              ]).map((token: any, index: number) => (
+                <div key={index} className="flex items-center gap-4 p-3 bg-secondary/30 hover:bg-secondary/50 rounded-lg transition-colors">
+                  <span className="w-6 text-center text-muted-foreground font-medium">{index + 1}</span>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{token.name}</span>
@@ -226,9 +204,7 @@ export default function MarketAnalysis() {
                     </div>
                     <span className="text-sm text-muted-foreground">{token.price}</span>
                   </div>
-                  <span className={`flex items-center gap-1 text-sm font-medium ${
-                    token.isPositive ? "text-success" : "text-destructive"
-                  }`}>
+                  <span className={`flex items-center gap-1 text-sm font-medium ${token.isPositive ? "text-success" : "text-destructive"}`}>
                     {token.isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                     {token.change}
                   </span>
@@ -237,13 +213,12 @@ export default function MarketAnalysis() {
             </div>
           </div>
 
-          {/* Sentiment Analysis */}
+          {/* Sentiment */}
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold">Market Sentiment</h2>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                Updated 5m ago
+                <Clock className="w-4 h-4" /> Updated 5m ago
               </div>
             </div>
             <div className="space-y-4">
@@ -252,26 +227,17 @@ export default function MarketAnalysis() {
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{item.topic}</span>
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      item.sentiment === "Bullish" 
-                        ? "bg-success/20 text-success"
-                        : item.sentiment === "Bearish"
-                        ? "bg-destructive/20 text-destructive"
+                      item.sentiment === "Bullish" ? "bg-success/20 text-success"
+                        : item.sentiment === "Bearish" ? "bg-destructive/20 text-destructive"
                         : "bg-warning/20 text-warning"
-                    }`}>
-                      {item.sentiment}
-                    </span>
+                    }`}>{item.sentiment}</span>
                   </div>
                   <div className="h-2 bg-secondary/50 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all ${
-                        item.score >= 70 
-                          ? "bg-gradient-to-r from-success to-accent"
-                          : item.score >= 40
-                          ? "bg-gradient-to-r from-warning to-accent"
-                          : "bg-gradient-to-r from-destructive to-warning"
-                      }`}
-                      style={{ width: `${item.score}%` }}
-                    />
+                    <div className={`h-full rounded-full transition-all ${
+                      item.score >= 70 ? "bg-gradient-to-r from-success to-accent"
+                        : item.score >= 40 ? "bg-gradient-to-r from-warning to-accent"
+                        : "bg-gradient-to-r from-destructive to-warning"
+                    }`} style={{ width: `${item.score}%` }} />
                   </div>
                 </div>
               ))}
@@ -283,7 +249,7 @@ export default function MarketAnalysis() {
                 <span className="font-medium">AI Analysis</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Base Network showing strong momentum with increasing TVL and user adoption. 
+                Base Network showing strong momentum with increasing TVL and user adoption.
                 Social tokens and meme coins gaining traction on Farcaster.
               </p>
             </div>
