@@ -25,8 +25,8 @@ serve(async (req) => {
     if (type === "defi") {
       // Fetch Base chain DeFi TVL from DeFiLlama
       const res = await fetch("https://api.llama.fi/v2/chains");
-      const chains = await res.json();
-      const base = chains.find((c: any) => c.name === "Base");
+      const chains: Array<{ name: string; [key: string]: unknown }> = await res.json();
+      const base = chains.find((c) => c.name === "Base");
       return new Response(JSON.stringify({ base: base || null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
