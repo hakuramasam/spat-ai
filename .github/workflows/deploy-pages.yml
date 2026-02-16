@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - codex/create-autonomous-spat-agent-for-transactions
   workflow_dispatch:
 
 permissions:
