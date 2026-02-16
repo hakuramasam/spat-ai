@@ -8,9 +8,10 @@ interface HeaderProps {
   isConnected: boolean;
   walletAddress?: string;
   onConnectWallet: () => void;
+  hasMinimumSPAT?: boolean;
 }
 
-export function Header({ isConnected, walletAddress, onConnectWallet }: HeaderProps) {
+export function Header({ isConnected, walletAddress, onConnectWallet, hasMinimumSPAT = false }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -60,6 +61,11 @@ export function Header({ isConnected, walletAddress, onConnectWallet }: HeaderPr
 
         {/* Wallet Button */}
         <div className="flex items-center gap-3">
+          {isConnected && (
+            <span className={`hidden md:inline-flex text-xs px-2 py-1 rounded-full border ${hasMinimumSPAT ? "bg-success/10 text-success border-success/40" : "bg-warning/10 text-warning border-warning/40"}`}>
+              {hasMinimumSPAT ? "Eligible" : "Need 1M $SPAT"}
+            </span>
+          )}
           <Button
             variant={isConnected ? "glass" : "glow"}
             onClick={onConnectWallet}

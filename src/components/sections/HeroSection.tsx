@@ -47,8 +47,9 @@ export function HeroSection({ onLaunchAgent }: HeroSectionProps) {
 
           {/* Description */}
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            Your intelligent companion for creating tokens, building dApps, 
-            deploying smart contracts, and automating blockchain tasks on Base Network.
+            An autonomous Base AI agent with its own execution wallet for transactions,
+            token operations, and blockchain workflows you define. Access requires
+            1,000,000+ $SPAT in your connected wallet.
           </p>
 
           {/* CTA Buttons */}

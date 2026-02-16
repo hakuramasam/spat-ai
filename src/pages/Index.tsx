@@ -11,11 +11,14 @@ import { useWallet } from "@/hooks/useWallet";
 import { toast } from "sonner";
 import { parseUnits } from "viem";
 
+const MINIMUM_SPAT_HOLDING = parseUnits("1000000", 18);
+
 const Index = () => {
-  const { address, isConnected, connectors, connect, disconnect } = useWallet();
+  const { address, isConnected, connectors, connect, disconnect, spatBalance } = useWallet();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const hasMinimumSPAT = !!spatBalance && spatBalance >= MINIMUM_SPAT_HOLDING;
 
   const handleConnectWallet = () => {
     if (isConnected) {
@@ -38,13 +41,17 @@ const Index = () => {
 
   const handleApprove = () => {
     setIsApprovalModalOpen(false);
-    toast.success("$SPAT Approved!", { description: "You can now use SPAT Agent" });
+    toast.success("$SPAT Approved!", { description: "You can now run autonomous SPAT workflows" });
   };
 
   const handleLaunchAgent = () => {
     if (!isConnected) {
       setIsWalletModalOpen(true);
       toast.info("Please connect your wallet first");
+    } else if (!hasMinimumSPAT) {
+      toast.error("Insufficient $SPAT balance", {
+        description: "SPAT Agent access requires at least 1,000,000 $SPAT in your connected wallet.",
+      });
     } else {
       setIsChatOpen(true);
     }
@@ -56,6 +63,7 @@ const Index = () => {
         isConnected={isConnected}
         walletAddress={address}
         onConnectWallet={handleConnectWallet}
+        hasMinimumSPAT={hasMinimumSPAT}
       />
       
       <main>
@@ -71,6 +79,7 @@ const Index = () => {
         onClose={() => setIsChatOpen(false)}
         isConnected={isConnected}
         onConnectWallet={handleConnectWallet}
+        hasMinimumSPAT={hasMinimumSPAT}
       />
       
       <WalletModal 
@@ -83,8 +92,8 @@ const Index = () => {
         isOpen={isApprovalModalOpen}
         onClose={() => setIsApprovalModalOpen(false)}
         onApprove={handleApprove}
-        amount="500,000"
-        action="Initial Agent Access"
+        amount="1,000,000"
+        action="SPAT Agent Autonomous Task Access"
       />
     </div>
   );
