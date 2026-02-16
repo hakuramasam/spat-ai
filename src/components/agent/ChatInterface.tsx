@@ -15,6 +15,7 @@ interface ChatInterfaceProps {
   onClose: () => void;
   isConnected: boolean;
   onConnectWallet: () => void;
+  hasMinimumSPAT: boolean;
 }
 
 const quickActions = [
@@ -24,12 +25,12 @@ const quickActions = [
   { icon: Sparkles, label: "Build dApp", prompt: "Help me build a decentralized application" },
 ];
 
-export function ChatInterface({ isOpen, onClose, isConnected, onConnectWallet }: ChatInterfaceProps) {
+export function ChatInterface({ isOpen, onClose, isConnected, onConnectWallet, hasMinimumSPAT }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
-      content: "Hello! I'm SPAT Agent, your autonomous AI companion for Base Network. I can help you create tokens, deploy smart contracts, analyze markets, and automate blockchain tasks. What would you like to build today?",
+      content: "Hello! I'm SPAT Agent, your autonomous Base companion. I can execute transactions through my agent wallet, run token-based workflows, build web3 dApps, and coordinate tasks for channels like moltbook.com and openclaw.ai. What should we automate first?",
       timestamp: new Date(),
     },
   ]);
@@ -75,6 +76,8 @@ export function ChatInterface({ isOpen, onClose, isConnected, onConnectWallet }:
 
 **$SPAT Cost**: 50,000 tokens for token creation
 
+I can execute the Base transaction flow once your task policy is confirmed
+
 Would you like to proceed? Please approve the $SPAT spend first.`,
         contract: `I'll help you deploy a smart contract! Here's my process:
 
@@ -84,6 +87,8 @@ Would you like to proceed? Please approve the $SPAT spend first.`,
 4. **Deploy**: Gas-optimized deployment to Base
 
 **$SPAT Cost**: 100,000 tokens for contract deployment
+
+I can send deployment transactions autonomously from the SPAT Agent wallet after approval
 
 What type of contract do you need? (NFT, ERC20, DeFi, Gaming, etc.)`,
         market: `📊 **Current Market Analysis**
@@ -114,6 +119,8 @@ Want me to dive deeper into any specific area?`,
 - API endpoints
 
 **$SPAT Cost**: 200,000 tokens for full dApp scaffold
+
+I can also prep integrations for moltbook.com and openclaw.ai experiences.
 
 What's your dApp idea? Gaming, Social, DeFi, or something else?`,
       };
@@ -160,9 +167,9 @@ What's your dApp idea? Gaming, Social, DeFi, or something else?`,
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {!isConnected && (
+            {(!isConnected || !hasMinimumSPAT) && (
               <Button variant="glow" size="sm" onClick={onConnectWallet}>
-                Connect Wallet
+                Connect / Verify Wallet
               </Button>
             )}
             <Button variant="ghost" size="icon" onClick={onClose}>
@@ -242,7 +249,7 @@ What's your dApp idea? Gaming, Social, DeFi, or something else?`,
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            💬 Chatting is free • Actions require $SPAT tokens
+            💬 Chat is free • Agent actions require $SPAT • Minimum access: 1,000,000 $SPAT
           </p>
         </div>
       </div>

@@ -49,13 +49,13 @@ const features = [
   {
     icon: Wallet,
     title: "Autonomous Wallet",
-    description: "Agent-controlled wallet for executing transactions, swaps, and contract deployments.",
+    description: "Dedicated SPAT Agent wallet to autonomously execute Base transactions and task workflows you approve.",
     gradient: "from-accent to-success"
   },
   {
     icon: Blocks,
     title: "dApp Builder",
-    description: "Build complete decentralized applications with AI-generated code and automated deployment.",
+    description: "Generate and ship full web3 dApps, then extend them for channels like moltbook.com and openclaw.ai.",
     gradient: "from-success to-primary"
   }
 ];
@@ -73,7 +73,7 @@ export function FeaturesSection() {
             <span className="text-gradient">Powerful Capabilities</span>
           </h2>
           <p className="text-muted-foreground text-lg">
-            Everything you need to build, deploy, and scale on Base Network
+            Everything you need to run autonomous SPAT workflows on Base Network
           </p>
         </div>
 
