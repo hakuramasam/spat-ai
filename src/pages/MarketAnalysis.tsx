@@ -16,6 +16,27 @@ import {
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPie, Pie, Cell } from "recharts";
 import { useEthPrice, useBaseTVL, useTrending, useEthHistory } from "@/hooks/useMarketData";
 
+type TrendingApiItem = {
+  item?: {
+    symbol?: string;
+    data?: {
+      price?: number | string;
+      price_change_percentage_24h?: {
+        usd?: number;
+      };
+      market_cap?: number | string;
+    };
+  };
+};
+
+type TrendingToken = {
+  name: string;
+  price: string;
+  change: string;
+  isPositive: boolean;
+  mcap: string;
+};
+
 const defiAllocation = [
   { name: "DEXs", value: 45, color: "hsl(217, 100%, 50%)" },
   { name: "Lending", value: 25, color: "hsl(180, 100%, 50%)" },
@@ -66,14 +87,16 @@ export default function MarketAnalysis() {
     setTimeout(() => setIsRefreshing(false), 1500);
   };
 
-  const trendingTokens = trending?.map((item: any) => ({
+  const trendingTokens: TrendingToken[] = (trending as TrendingApiItem[] | undefined)?.map((item) => ({
     name: item.item?.symbol ? `$${item.item.symbol.toUpperCase()}` : "—",
     price: item.item?.data?.price ? `$${Number(item.item.data.price).toFixed(4)}` : "—",
     change: item.item?.data?.price_change_percentage_24h?.usd
       ? `${item.item.data.price_change_percentage_24h.usd >= 0 ? "+" : ""}${item.item.data.price_change_percentage_24h.usd.toFixed(1)}%`
       : "—",
     isPositive: (item.item?.data?.price_change_percentage_24h?.usd || 0) >= 0,
-    mcap: item.item?.data?.market_cap ? `$${(Number(item.item.data.market_cap.replace(/[^0-9.]/g, '')) / 1e6).toFixed(0)}M` : "—",
+    mcap: item.item?.data?.market_cap
+      ? `$${(Number(String(item.item.data.market_cap).replace(/[^0-9.]/g, "")) / 1e6).toFixed(0)}M`
+      : "—",
   })) || [];
 
   return (
@@ -194,7 +217,7 @@ export default function MarketAnalysis() {
             <div className="space-y-3">
               {(trendingTokens.length > 0 ? trendingTokens : [
                 { name: "$—", price: "—", change: "—", isPositive: true, mcap: "—" },
-              ]).map((token: any, index: number) => (
+              ]).map((token: TrendingToken, index: number) => (
                 <div key={index} className="flex items-center gap-4 p-3 bg-secondary/30 hover:bg-secondary/50 rounded-lg transition-colors">
                   <span className="w-6 text-center text-muted-foreground font-medium">{index + 1}</span>
                   <div className="flex-1">
