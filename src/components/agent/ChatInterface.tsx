@@ -1,7 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { AgentIcon } from "@/components/icons/AgentIcon";
 import { Send, Loader2, Sparkles, Code, Coins, Globe, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import { streamChat, type ChatMsg } from "@/lib/ai-stream";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
@@ -19,10 +22,10 @@ interface ChatInterfaceProps {
 }
 
 const quickActions = [
-  { icon: Coins, label: "Create Token", prompt: "Help me create a new token on Base" },
-  { icon: Code, label: "Deploy Contract", prompt: "I want to deploy a smart contract" },
-  { icon: Globe, label: "Market Analysis", prompt: "Analyze the current crypto market trends" },
-  { icon: Sparkles, label: "Build dApp", prompt: "Help me build a decentralized application" },
+  { icon: Coins, label: "Create Token", prompt: "Help me create a new token on Base using Clanker, Streme.fun, or Flaunch.gg" },
+  { icon: Code, label: "Deploy Contract", prompt: "I want to deploy a smart contract on Base Network" },
+  { icon: Globe, label: "Market Analysis", prompt: "Analyze the current crypto market trends and Base Network metrics" },
+  { icon: Sparkles, label: "Build dApp", prompt: "Help me build a decentralized application on Base" },
 ];
 
 export function ChatInterface({ isOpen, onClose, isConnected, onConnectWallet, hasMinimumSPAT }: ChatInterfaceProps) {
@@ -30,13 +33,14 @@ export function ChatInterface({ isOpen, onClose, isConnected, onConnectWallet, h
     {
       id: "1",
       role: "assistant",
-      content: "Hello! I'm SPAT Agent, your autonomous Base companion. I can execute transactions through my agent wallet, run token-based workflows, build web3 dApps, and coordinate tasks for channels like moltbook.com and openclaw.ai. What should we automate first?",
+      content: "Hello! I'm **SPAT Agent**, your autonomous Base companion. I can execute transactions, create tokens, deploy contracts, analyze markets, and post to social platforms.\n\n💬 Chat is **free** — agent actions cost **$SPAT**.\n\nWhat should we work on?",
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,9 +50,9 @@ export function ChatInterface({ isOpen, onClose, isConnected, onConnectWallet, h
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async (text?: string) => {
+  const handleSend = useCallback(async (text?: string) => {
     const messageText = text || input;
-    if (!messageText.trim()) return;
+    if (!messageText.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -61,94 +65,45 @@ export function ChatInterface({ isOpen, onClose, isConnected, onConnectWallet, h
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const responses: Record<string, string> = {
-        token: `I can help you create a token on Base Network! Here's what I'll do:
+    // Build history for AI
+    const history: ChatMsg[] = messages
+      .filter((m) => m.id !== "1") // skip initial greeting
+      .map((m) => ({ role: m.role, content: m.content }));
+    history.push({ role: "user", content: messageText });
 
-1. **Choose Platform**: Clanker, Streme.fun, or Flaunch.gg
-2. **Configure Token**: Name, symbol, supply, and metadata
-3. **Deploy**: Automatic deployment with fee distribution
+    let assistantContent = "";
 
-**Fees:**
-- $0.10 USD in ETH (platform fee)
-- 0.5% tokens distributed to ecosystem founders
+    const upsertAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === "assistant" && last.id.startsWith("stream-")) {
+          return prev.map((m, i) =>
+            i === prev.length - 1 ? { ...m, content: assistantContent } : m
+          );
+        }
+        return [
+          ...prev,
+          { id: `stream-${Date.now()}`, role: "assistant" as const, content: assistantContent, timestamp: new Date() },
+        ];
+      });
+    };
 
-**$SPAT Cost**: 50,000 tokens for token creation
-
-I can execute the Base transaction flow once your task policy is confirmed
-
-Would you like to proceed? Please approve the $SPAT spend first.`,
-        contract: `I'll help you deploy a smart contract! Here's my process:
-
-1. **Analyze Requirements**: What should your contract do?
-2. **Generate Code**: AI-powered Solidity generation
-3. **Security Review**: Automated vulnerability scanning
-4. **Deploy**: Gas-optimized deployment to Base
-
-**$SPAT Cost**: 100,000 tokens for contract deployment
-
-I can send deployment transactions autonomously from the SPAT Agent wallet after approval
-
-What type of contract do you need? (NFT, ERC20, DeFi, Gaming, etc.)`,
-        market: `📊 **Current Market Analysis**
-
-**Base Network Metrics:**
-- TVL: $7.2B (+12% 7d)
-- Daily Transactions: 4.2M
-- Active Addresses: 890K
-
-**Top Opportunities:**
-1. DEX liquidity provision (APY: 15-45%)
-2. NFT minting surge on Zora
-3. Social token momentum on Farcaster
-
-**$SPAT Cost**: 10,000 tokens for detailed analysis
-
-Want me to dive deeper into any specific area?`,
-        dapp: `Let's build your dApp! I can help with:
-
-**Frontend:**
-- React/Next.js setup
-- Wallet integration (RainbowKit)
-- Base Network connection
-
-**Backend:**
-- Smart contract architecture
-- Database design
-- API endpoints
-
-**$SPAT Cost**: 200,000 tokens for full dApp scaffold
-
-I can also prep integrations for moltbook.com and openclaw.ai experiences.
-
-What's your dApp idea? Gaming, Social, DeFi, or something else?`,
-      };
-
-      let response = "I understand your request. Let me analyze it and provide the best approach. Could you provide more details about what you'd like to accomplish?";
-      
-      const lowerText = messageText.toLowerCase();
-      if (lowerText.includes("token") || lowerText.includes("create")) {
-        response = responses.token;
-      } else if (lowerText.includes("contract") || lowerText.includes("deploy")) {
-        response = responses.contract;
-      } else if (lowerText.includes("market") || lowerText.includes("analy")) {
-        response = responses.market;
-      } else if (lowerText.includes("dapp") || lowerText.includes("app") || lowerText.includes("build")) {
-        response = responses.dapp;
-      }
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: response,
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
+    try {
+      await streamChat({
+        messages: history,
+        onDelta: upsertAssistant,
+        onDone: () => setIsLoading(false),
+        onError: (err) => {
+          toast.error("AI Error", { description: err });
+          setIsLoading(false);
+        },
+      });
+    } catch (e) {
+      toast.error("Failed to reach AI agent");
       setIsLoading(false);
-    }, 1500);
-  };
+    }
+  }, [input, isLoading, messages]);
 
   if (!isOpen) return null;
 
@@ -163,7 +118,7 @@ What's your dApp idea? Gaming, Social, DeFi, or something else?`,
             </div>
             <div>
               <h3 className="font-semibold text-gradient">SPAT Agent</h3>
-              <p className="text-xs text-muted-foreground">Base Network AI Assistant</p>
+              <p className="text-xs text-muted-foreground">AI-Powered • Base Network</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -192,14 +147,20 @@ What's your dApp idea? Gaming, Social, DeFi, or something else?`,
                     : "bg-secondary/50 border border-border/50 rounded-bl-md"
                 }`}
               >
-                <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                {message.role === "assistant" ? (
+                  <div className="prose prose-sm prose-invert max-w-none text-sm [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                )}
                 <p className="text-xs opacity-60 mt-2">
                   {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
             </div>
           ))}
-          {isLoading && (
+          {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
             <div className="flex justify-start">
               <div className="bg-secondary/50 border border-border/50 p-4 rounded-2xl rounded-bl-md">
                 <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -219,6 +180,7 @@ What's your dApp idea? Gaming, Social, DeFi, or something else?`,
                 size="sm"
                 onClick={() => handleSend(action.prompt)}
                 className="shrink-0"
+                disabled={isLoading}
               >
                 <action.icon className="w-4 h-4" />
                 {action.label}
@@ -237,6 +199,7 @@ What's your dApp idea? Gaming, Social, DeFi, or something else?`,
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
               placeholder="Ask SPAT Agent anything..."
               className="flex-1 bg-secondary/50 border border-border/50 rounded-xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
+              disabled={isLoading}
             />
             <Button
               variant="glow"
