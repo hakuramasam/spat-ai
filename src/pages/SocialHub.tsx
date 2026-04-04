@@ -16,6 +16,7 @@ import {
   Coins,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type Platform = "x" | "farcaster" | "zora" | "baseapp";
 
@@ -67,31 +68,59 @@ export default function SocialHub() {
 
   const totalCost = draft.platforms.reduce((sum, p) => sum + platformConfig[p].costSPAT, 0);
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!draft.content.trim() || draft.platforms.length === 0) {
       toast.error("Please write content and select at least one platform");
       return;
     }
     setIsPosting(true);
-    setTimeout(() => {
-      setIsPosting(false);
-      toast.success("Content posted successfully!", {
-        description: `Posted to ${draft.platforms.map(p => platformConfig[p].name).join(", ")}`,
+    try {
+      const { data, error } = await supabase.functions.invoke("social-post", {
+        body: {
+          action: "post",
+          platforms: draft.platforms,
+          content: draft.content,
+          contentCoinName: draft.contentCoinName,
+        },
       });
+      if (error) throw error;
+      
+      const results = data?.results || {};
+      const successes = Object.entries(results).filter(([, r]: any) => r.success);
+      const failures = Object.entries(results).filter(([, r]: any) => !r.success);
+      
+      if (successes.length > 0) {
+        toast.success(`Posted to ${successes.map(([p]) => p).join(", ")}!`);
+      }
+      failures.forEach(([platform, result]: any) => {
+        toast.info(`${platform}: ${result.message}`);
+      });
+      
       setDraft({ content: "", platforms: [], mediaUrl: "", scheduledAt: "", isContentCoin: false, contentCoinName: "" });
-    }, 2000);
+    } catch (e) {
+      toast.error("Failed to post");
+    } finally {
+      setIsPosting(false);
+    }
   };
 
-  const handleAIGenerate = () => {
+  const handleAIGenerate = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      setDraft(prev => ({
-        ...prev,
-        content: "🚀 Exciting developments on @base today! The ecosystem continues to grow with record TVL and innovative projects launching daily. $SPAT is leading the charge in AI-powered blockchain automation. Who else is bullish on Base? 🔵\n\n#Base #DeFi #Web3 #AI",
-      }));
-      setIsGenerating(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-post", {
+        body: {
+          action: "generate",
+          content: draft.content || "Generate an engaging post about the Base Network ecosystem and $SPAT token",
+        },
+      });
+      if (error) throw error;
+      setDraft(prev => ({ ...prev, content: data?.content || prev.content }));
       toast.success("AI-generated content ready!");
-    }, 1500);
+    } catch (e) {
+      toast.error("Failed to generate content");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (

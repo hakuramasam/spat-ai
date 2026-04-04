@@ -16,6 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type ContractType = "erc20" | "erc721" | "erc1155" | "custom" | "defi" | "gaming";
 type WizardStep = "type" | "configure" | "code" | "deploy";
@@ -90,14 +91,30 @@ export default function ContractWizard() {
     }));
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      setGeneratedCode(sampleSolidity);
-      setIsGenerating(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-contract", {
+        body: {
+          contractType: config.type,
+          name: config.name,
+          description: config.description,
+          features: config.features,
+          customPrompt: config.customPrompt,
+        },
+      });
+      if (error) throw error;
+      setGeneratedCode(data.code || sampleSolidity);
       setStep("code");
-      toast.success("Smart contract generated!");
-    }, 2000);
+      toast.success("Smart contract generated with AI!");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate contract, using template");
+      setGeneratedCode(sampleSolidity);
+      setStep("code");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopy = () => {
