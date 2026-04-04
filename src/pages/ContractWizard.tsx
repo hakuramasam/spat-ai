@@ -16,6 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type ContractType = "erc20" | "erc721" | "erc1155" | "custom" | "defi" | "gaming";
 type WizardStep = "type" | "configure" | "code" | "deploy";
