@@ -104,16 +104,23 @@ export default function SocialHub() {
     }
   };
 
-  const handleAIGenerate = () => {
+  const handleAIGenerate = async () => {
     setIsGenerating(true);
-    setTimeout(() => {
-      setDraft(prev => ({
-        ...prev,
-        content: "🚀 Exciting developments on @base today! The ecosystem continues to grow with record TVL and innovative projects launching daily. $SPAT is leading the charge in AI-powered blockchain automation. Who else is bullish on Base? 🔵\n\n#Base #DeFi #Web3 #AI",
-      }));
-      setIsGenerating(false);
+    try {
+      const { data, error } = await supabase.functions.invoke("social-post", {
+        body: {
+          action: "generate",
+          content: draft.content || "Generate an engaging post about the Base Network ecosystem and $SPAT token",
+        },
+      });
+      if (error) throw error;
+      setDraft(prev => ({ ...prev, content: data?.content || prev.content }));
       toast.success("AI-generated content ready!");
-    }, 1500);
+    } catch (e) {
+      toast.error("Failed to generate content");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
